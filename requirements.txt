@@ -1,0 +1,7 @@
+requests
+beautifulsoup4
+python-dotenv
+pandas
+rapidfuzz
+streamlit
+pytest

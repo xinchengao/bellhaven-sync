@@ -1,0 +1,4 @@
+# Run the sync every day at 6:00 local time on the machine that hosts the review
+# app, so both share bellhaven.db. flock prevents overlapping runs.
+# Install with:  crontab deploy/crontab.txt   (adjust the path first)
+0 6 * * * cd /path/to/bellhaven-sync && /usr/bin/flock -n /tmp/bellhaven-sync.lock .venv/bin/python run_pipeline.py >> logs/sync.log 2>&1

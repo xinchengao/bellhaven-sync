@@ -1,0 +1,11 @@
+.env
+data/
+logs/
+*.db
+*.db-journal
+__pycache__/
+.venv/
+_to_delete/
+.pytest_cache/
+venv/
+.DS_Store

@@ -1,0 +1,59 @@
+# Daily Bellhaven sync: scrape website, pull CRM, queue proposals for review.
+# Read-only against the CRM. Writes happen only from the review app on approval.
+#
+# The proposal store (SQLite) must survive between runs so already-decided items
+# are not re-proposed. Here it is carried forward with actions/cache; in
+# production it would live in a shared database the review app also uses.
+name: daily-bellhaven-sync
+
+on:
+  schedule:
+    - cron: "0 10 * * *"   # 10:00 UTC = 6am ET, before the sales team starts
+  workflow_dispatch: {}
+
+concurrency:
+  group: bellhaven-sync
+  cancel-in-progress: false   # never run two syncs at once
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore proposal store
+        uses: actions/cache/restore@v4
+        with:
+          path: bellhaven.db
+          key: bellhaven-db-${{ github.run_id }}
+          restore-keys: bellhaven-db-
+
+      - name: Tests
+        run: python -m pytest -q tests/
+
+      - name: Run pipeline
+        env:
+          BH_TOKEN: ${{ secrets.BH_TOKEN }}
+        run: python run_pipeline.py | tee run_summary.txt
+
+      - name: Save proposal store
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: bellhaven.db
+          key: bellhaven-db-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sync-${{ github.run_id }}
+          path: |
+            run_summary.txt
+            data/match_report.csv
